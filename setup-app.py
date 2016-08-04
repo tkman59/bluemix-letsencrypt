@@ -1,5 +1,22 @@
 import yaml
-from subprocess import call
+from subprocess import call, Popen, PIPE, STDOUT
+import time
+
+def get_cert(appname, domain, certname):
+    """get_cert wraps the `cf files` command to retrive only the literal file
+    contents of the certificate that was requested, without the status code at
+    the beginning. It then writes the certificate to a file in the current
+    working directory with the same name that the certificate had on the
+    server.
+    """
+    command = "cf files %s app/conf/live/%s/%s" % (appname, domain, certname)
+    print("Running: %s" % command)
+    pipe = Popen(command, shell=True, stdout=PIPE)
+    output = pipe.stdout.readlines()
+    cert = ''.join(output[3:])
+    with open(certname, 'w') as outfile:
+        print("Writing cert to %s" % certname)
+        outfile.write(cert)
 
 with open('domains.yml') as data_file:
     settings = yaml.safe_load(data_file)
@@ -24,3 +41,14 @@ for entry in settings['domains']:
 
 # Now the app can be started
 call(["cf", "start", appname])
+
+# Hack to wait for app to finish. Replace with parsing cf log
+domain_with_first_host = "%s.%s" % (settings['domains'][0]['hosts'][0], domain)
+print(domain_with_first_host)
+print("Waiting for certs (could take several minutes)")
+time.sleep(60)
+
+# Pull all of the certs as local files
+get_cert(appname, domain_with_first_host, 'cert.pem')
+get_cert(appname, domain_with_first_host, 'chain.pem')
+get_cert(appname, domain_with_first_host, 'privkey.pem')
