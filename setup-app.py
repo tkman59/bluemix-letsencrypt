@@ -10,7 +10,7 @@ def get_cert(appname, domain, certname):
     working directory with the same name that the certificate had on the
     server.
     """
-    command = "cf files %s app/conf/live/%s/%s" % (appname, domain, certname)
+    command = "bx files %s app/conf/live/%s/%s" % (appname, domain, certname)
     print("Running: %s" % command)
     pipe = Popen(command, shell=True, stdout=PIPE)
     output = pipe.stdout.readlines()
@@ -29,7 +29,7 @@ print(settings)
 appname = manifest['applications'][0]['name']
 
 # Push the app, but don't start it yet
-call(["cf", "push", "--no-start"])
+call(["bx", "push", "--no-start"])
 
 # For each domain, map a route for the specific letsencrypt check path
 # '/.well-known/acme-challenge/'
@@ -37,17 +37,17 @@ for entry in settings['domains']:
     domain = entry['domain']
     for host in entry['hosts']:
         if host == '.':
-            call(["cf", "map-route", appname, domain, "--path", "/.well-known/acme-challenge/"])
+            call(["bx", "map-route", appname, domain, "--path", "/.well-known/acme-challenge/"])
         else:
-            call(["cf", "map-route", appname, domain, "--hostname", host, "--path", "/.well-known/acme-challenge/"])
+            call(["bx", "map-route", appname, domain, "--hostname", host, "--path", "/.well-known/acme-challenge/"])
 
 # Now the app can be started
-call(["cf", "start", appname])
+call(["bx", "start", appname])
 
 # Tail the application log
 print("Parsing log files.")
-end_token = "cf stop letsencrypt"  # Seeing this in the log means certs done
-log_pipe = Popen("cf logs %s --recent" % appname, shell=True,
+end_token = "bx stop letsencrypt"  # Seeing this in the log means certs done
+log_pipe = Popen("bx logs %s --recent" % appname, shell=True,
                  stdout=PIPE, stderr=PIPE)
 log_lines = log_pipe.stdout.readlines()
 print("Waiting for certs (could take several minutes)")
@@ -55,13 +55,13 @@ while end_token not in ''.join(log_lines):
     # Keep checking the logs for cert readiness
     print("Certs not ready yet, retrying in 5 seconds.")
     time.sleep(5)
-    log_pipe = Popen("cf logs %s --recent" % appname, shell=True,
+    log_pipe = Popen("bx logs %s --recent" % appname, shell=True,
                      stdout=PIPE, stderr=PIPE)
     log_lines = log_pipe.stdout.readlines()
 # Now that certs should be ready, parse for the commands to fetch them
 cmds = []
 for line in log_lines:
-    if ("cf files %s" % appname) in line:
+    if ("bx files %s" % appname) in line:
         cmds.append(line)
 
 # Preprocess and transform commands
