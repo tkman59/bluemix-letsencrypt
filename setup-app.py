@@ -1,5 +1,6 @@
 import yaml
 from subprocess import call, Popen, PIPE
+import sys
 import time
 
 
@@ -58,10 +59,14 @@ while end_token not in ''.join(log_lines):
     log_pipe = Popen("cf logs %s --recent" % appname, shell=True,
                      stdout=PIPE, stderr=PIPE)
     log_lines = log_pipe.stdout.readlines()
+
+# Figure out which domain name to look for
+primary_domain = settings['domains'][0]['domain']
+
 # Now that certs should be ready, parse for the commands to fetch them
 cmds = []
 for line in log_lines:
-    if ("cf files %s" % appname) in line:
+    if ("cf files %s" % appname) in line and primary_domain in line:
         cmds.append(line)
 
 # Preprocess and transform commands
@@ -92,7 +97,7 @@ for cmd in cmds:
     get_cert(**cmd)
 
 domain_with_first_host = "%s.%s" % (settings['domains'][0]['hosts'][0],
-                                    settings['domains'][0]['domain'])
+                                    primary_domain)
 # Hostname is sometimes '.', which requires special handling
 if domain_with_first_host.startswith('..'):
     domain_with_first_host = domain_with_first_host[2:]
@@ -103,6 +108,28 @@ get_cert(appname, domain_with_first_host, 'cert.pem')
 get_cert(appname, domain_with_first_host, 'chain.pem')
 get_cert(appname, domain_with_first_host, 'privkey.pem')
 
+# Check if there is already an SSL in place
+pipe = Popen("bx security cert %s" % domain_with_first_host,
+             stdout=PIPE, shell=True)
+if "OK" in pipe.stdout.read():
+    print("\n\n***IMPORTANT***")
+    print("This domain name already has an SSL in bluemix. You must"
+          + " first remove the old SSL before adding a new one. This"
+          + " means that your application will have a window of time"
+          + " without an SSL. If that is unacceptable for your"
+          + " application, use the Bluemix Web UI to update your"
+          + " SSL. If you can afford the SSL downtime, follow the"
+          + " instructions below. You may see error messages when"
+          + " running these commands. You only need to be concerned if"
+          + " the last command produces an error instead of displaying"
+          + " a table of information about your new SSL.\n")
+    print("\n(See Warning Above) If you wish to continue, run:\n"
+          + ("bx security cert-remove %s; " % domain_with_first_host)
+          + ("bx security cert-add %s -c cert.pem -k privkey.pem; "
+             % domain_with_first_host)
+          + ("bx security cert %s\n" % domain_with_first_host))
+    sys.exit(1)
+
 # Upload new cert
 call("bx security cert-add %s -c cert.pem -k privkey.pem"
      % domain_with_first_host, shell=True)
@@ -110,3 +137,5 @@ pipe = Popen("bx security cert %s" % domain_with_first_host,
              stdout=PIPE, shell=True)
 if "OK" in pipe.stdout.read():
     print("Upload Succeeded")
+else:
+    print("Upload Failed")
