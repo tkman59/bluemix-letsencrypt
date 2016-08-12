@@ -1,7 +1,26 @@
+import requests
 import yaml
 from subprocess import call, Popen, PIPE
 import sys
 import time
+
+
+def domain_has_ssl(domain, print_info=False):
+    """domain_has_ssl uses the two most-reliable ways to check for an SSL on
+    a domain name within bluemix. It calls the Bluemix CLI to ask for
+    certificate details, and it attempts to connect to that domain with HTTPS.
+    If either succeeds, it returns True. Otherwise, it returns false. Note
+    that it is possible to get false negatives, but not false positives.
+    The print_info parameter can be used to dump the certificate information
+    from Bluemix to stdout.
+    """
+    pipe = Popen("bx security cert %s" % domain,
+                 stdout=PIPE, shell=True)
+    output = pipe.stdout.read()
+    cert_exists = "OK" in output
+    if print_info and cert_exists:
+        print(output)
+    return cert_exists or check_ssl(domain)
 
 
 def get_cert(appname, domain, certname):
@@ -20,6 +39,21 @@ def get_cert(appname, domain, certname):
         print("Writing cert to %s" % certname)
         outfile.write(cert)
 
+
+def check_ssl(ssl_domain):
+    """check_ssl makes an HTTPS request to a given domain name and
+    returns a boolean for whether the SSL on the domain is present
+    and valid.
+    """
+    try:
+        target = "https://%s" % ssl_domain
+        print("Making GET request to %s" % target)
+        requests.get(target)
+        return True
+    except requests.exceptions.SSLError as err:
+        print(err)
+        return False
+
 with open('domains.yml') as data_file:
     settings = yaml.safe_load(data_file)
 
@@ -28,7 +62,6 @@ with open('manifest.yml') as manifest_file:
 
 appname = manifest['applications'][0]['name']
 
-"""
 # Push the app, but don't start it yet
 call(["cf", "push", "--no-start"])
 
@@ -44,7 +77,6 @@ for entry in settings['domains']:
 
 # Now the app can be started
 call(["cf", "start", appname])
-"""
 
 # Tail the application log
 print("Parsing log files.")
@@ -100,9 +132,7 @@ if domain_with_first_host.startswith('..'):
     domain_with_first_host = domain_with_first_host[2:]
 
 # Check if there is already an SSL in place
-pipe = Popen("bx security cert %s" % domain_with_first_host,
-             stdout=PIPE, shell=True)
-if "OK" in pipe.stdout.read():
+if domain_has_ssl(domain_with_first_host, True):
     print("\n\n***IMPORTANT***")
     print("This domain name already has an SSL in bluemix. You must"
           + " first remove the old SSL before adding a new one. This"
@@ -126,13 +156,16 @@ count = 0
 while(failure and count < 3):
     # Upload new cert
     print("Attempting certificate upload...")
-    call("bx security cert-add %s -c cert.pem -k privkey.pem"
+    call("bx security cert-add %s -c cert.pem -k privkey.pem -i chain.pem"
          % domain_with_first_host, shell=True)
-    pipe = Popen("bx security cert %s" % domain_with_first_host,
-                 stdout=PIPE, shell=True)
-    failure = "OK" in pipe.stdout.read()
+    failure = not domain_has_ssl(domain_with_first_host, True)
     count = count + 1
     time.sleep(5)
+
+print("Warning: Please note that your SSL certificate, its corresponding"
+      + " PRIVATE KEY, and its intermediate certificates have been downloaded"
+      + " to the current working directory. If you need to remove them, use"
+      + " `rm *.pem`")
 if failure:
     print("Unable to upload certificates")
     sys.exit(1)
