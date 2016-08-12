@@ -10,11 +10,11 @@ def get_cert(appname, domain, certname):
     working directory with the same name that the certificate had on the
     server.
     """
-    command = "bx files %s app/conf/live/%s/%s" % (appname, domain, certname)
+    command = "cf files %s app/conf/live/%s/%s" % (appname, domain, certname)
     print("Running: %s" % command)
     pipe = Popen(command, shell=True, stdout=PIPE)
     output = pipe.stdout.readlines()
-    cert = ''.join(output[3:-2])  # Strip leading and trailing characters
+    cert = ''.join(output[3:-1])  # Strip leading and trailing characters
     with open(certname, 'w') as outfile:
         print("Writing cert to %s" % certname)
         outfile.write(cert)
@@ -29,7 +29,7 @@ print(settings)
 appname = manifest['applications'][0]['name']
 
 # Push the app, but don't start it yet
-call(["bx", "push", "--no-start"])
+call(["cf", "push", "--no-start"])
 
 # For each domain, map a route for the specific letsencrypt check path
 # '/.well-known/acme-challenge/'
@@ -37,17 +37,17 @@ for entry in settings['domains']:
     domain = entry['domain']
     for host in entry['hosts']:
         if host == '.':
-            call(["bx", "map-route", appname, domain, "--path", "/.well-known/acme-challenge/"])
+            call(["cf", "map-route", appname, domain, "--path", "/.well-known/acme-challenge/"])
         else:
-            call(["bx", "map-route", appname, domain, "--hostname", host, "--path", "/.well-known/acme-challenge/"])
+            call(["cf", "map-route", appname, domain, "--hostname", host, "--path", "/.well-known/acme-challenge/"])
 
 # Now the app can be started
-call(["bx", "start", appname])
+call(["cf", "start", appname])
 
 # Tail the application log
 print("Parsing log files.")
-end_token = "bx stop letsencrypt"  # Seeing this in the log means certs done
-log_pipe = Popen("bx logs %s --recent" % appname, shell=True,
+end_token = "cf stop %s" % appname  # Seeing this in the log means certs done
+log_pipe = Popen("cf logs %s --recent" % appname, shell=True,
                  stdout=PIPE, stderr=PIPE)
 log_lines = log_pipe.stdout.readlines()
 print("Waiting for certs (could take several minutes)")
@@ -55,13 +55,13 @@ while end_token not in ''.join(log_lines):
     # Keep checking the logs for cert readiness
     print("Certs not ready yet, retrying in 5 seconds.")
     time.sleep(5)
-    log_pipe = Popen("bx logs %s --recent" % appname, shell=True,
+    log_pipe = Popen("cf logs %s --recent" % appname, shell=True,
                      stdout=PIPE, stderr=PIPE)
     log_lines = log_pipe.stdout.readlines()
 # Now that certs should be ready, parse for the commands to fetch them
 cmds = []
 for line in log_lines:
-    if ("bx files %s" % appname) in line:
+    if ("cf files %s" % appname) in line:
         cmds.append(line)
 
 # Preprocess and transform commands
@@ -91,11 +91,22 @@ print(cmds)
 for cmd in cmds:
     get_cert(**cmd)
 
-# Hack to wait for app to finish. Replace with parsing cf log
-domain_with_first_host = "%s.%s" % (settings['domains'][0]['hosts'][0], domain)
-print(domain_with_first_host)
+domain_with_first_host = "%s.%s" % (settings['domains'][0]['hosts'][0],
+                                    settings['domains'][0]['domain'])
+# Hostname is sometimes '.', which requires special handling
+if domain_with_first_host.startswith('..'):
+    domain_with_first_host = domain_with_first_host[2:]
+print("\nTarget domain:", domain_with_first_host, "\n")
 
 # Pull all of the certs as local files
 get_cert(appname, domain_with_first_host, 'cert.pem')
 get_cert(appname, domain_with_first_host, 'chain.pem')
 get_cert(appname, domain_with_first_host, 'privkey.pem')
+
+# Upload new cert
+call("bx security cert-add %s -c cert.pem -k privkey.pem"
+     % domain_with_first_host, shell=True)
+pipe = Popen("bx security cert %s" % domain_with_first_host,
+             stdout=PIPE, shell=True)
+if "OK" in pipe.stdout.read():
+    print("Upload Succeeded")
