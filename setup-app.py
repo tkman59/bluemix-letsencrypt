@@ -26,9 +26,9 @@ with open('domains.yml') as data_file:
 with open('manifest.yml') as manifest_file:
     manifest = yaml.safe_load(manifest_file)
 
-print(settings)
 appname = manifest['applications'][0]['name']
 
+"""
 # Push the app, but don't start it yet
 call(["cf", "push", "--no-start"])
 
@@ -44,6 +44,7 @@ for entry in settings['domains']:
 
 # Now the app can be started
 call(["cf", "start", appname])
+"""
 
 # Tail the application log
 print("Parsing log files.")
@@ -89,18 +90,14 @@ for idx, cmd in enumerate(cmds):
     components['appname'] = cmd[2]
     components['domain'] = cmd[3].split('/')[-2]
     components['certname'] = cmd[3].split('/')[-1]
-    cmds[idx] = components
-
-# Fetch the certificates
-for cmd in cmds:
-    get_cert(**cmd)
+    # Fetch the certificate
+    get_cert(**components)
 
 domain_with_first_host = "%s.%s" % (settings['domains'][0]['hosts'][0],
                                     primary_domain)
 # Hostname is sometimes '.', which requires special handling
 if domain_with_first_host.startswith('..'):
     domain_with_first_host = domain_with_first_host[2:]
-print("\nTarget domain:", domain_with_first_host, "\n")
 
 # Check if there is already an SSL in place
 pipe = Popen("bx security cert %s" % domain_with_first_host,
@@ -124,12 +121,19 @@ if "OK" in pipe.stdout.read():
           + ("bx security cert %s\n" % domain_with_first_host))
     sys.exit(1)
 
-# Upload new cert
-call("bx security cert-add %s -c cert.pem -k privkey.pem"
-     % domain_with_first_host, shell=True)
-pipe = Popen("bx security cert %s" % domain_with_first_host,
-             stdout=PIPE, shell=True)
-if "OK" in pipe.stdout.read():
-    print("Upload Succeeded")
-else:
-    print("Upload Failed")
+failure = True
+count = 0
+while(failure and count < 3):
+    # Upload new cert
+    print("Attempting certificate upload...")
+    call("bx security cert-add %s -c cert.pem -k privkey.pem"
+         % domain_with_first_host, shell=True)
+    pipe = Popen("bx security cert %s" % domain_with_first_host,
+                 stdout=PIPE, shell=True)
+    failure = "OK" in pipe.stdout.read()
+    count = count + 1
+    time.sleep(5)
+if failure:
+    print("Unable to upload certificates")
+    sys.exit(1)
+print("Upload Succeeded")
