@@ -90,7 +90,6 @@ for idx, cmd in enumerate(cmds):
     components['domain'] = cmd[3].split('/')[-2]
     components['certname'] = cmd[3].split('/')[-1]
     cmds[idx] = components
-print(cmds)
 
 # Fetch the certificates
 for cmd in cmds:
@@ -102,11 +101,6 @@ domain_with_first_host = "%s.%s" % (settings['domains'][0]['hosts'][0],
 if domain_with_first_host.startswith('..'):
     domain_with_first_host = domain_with_first_host[2:]
 print("\nTarget domain:", domain_with_first_host, "\n")
-
-# Pull all of the certs as local files
-get_cert(appname, domain_with_first_host, 'cert.pem')
-get_cert(appname, domain_with_first_host, 'chain.pem')
-get_cert(appname, domain_with_first_host, 'privkey.pem')
 
 # Check if there is already an SSL in place
 pipe = Popen("bx security cert %s" % domain_with_first_host,
