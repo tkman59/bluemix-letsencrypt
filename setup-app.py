@@ -89,13 +89,26 @@ log_pipe = Popen("cf logs %s --recent" % appname, shell=True,
                  stdout=PIPE, stderr=PIPE)
 log_lines = log_pipe.stdout.readlines()
 print("Waiting for certs (could take several minutes)")
-while end_token not in ''.join(log_lines):
+seconds_waited = 0
+MAX_WAIT_SECONDS = 600
+while end_token not in ''.join(log_lines)\
+        and seconds_waited < MAX_WAIT_SECONDS:
     # Keep checking the logs for cert readiness
     print("Certs not ready yet, retrying in 5 seconds.")
     time.sleep(5)
+    seconds_waited = seconds_waited + 5
     log_pipe = Popen("cf logs %s --recent" % appname, shell=True,
                      stdout=PIPE, stderr=PIPE)
     log_lines = log_pipe.stdout.readlines()
+
+# If no certs in log after 10 minutes, exit and warn user
+if seconds_waited >= MAX_WAIT_SECONDS:
+    print("\n\nIt has been %d minutes without seeing certificates issued"
+          % (MAX_WAIT_SECONDS/60)
+          + " in the log. Something probably went wrong. Please check"
+          + " the output of `cf logs %s --recent`" % appname
+          + " for more information.\n\nExiting.")
+    sys.exit(1)
 
 # Figure out which domain name to look for
 primary_domain = settings['domains'][0]['domain']
