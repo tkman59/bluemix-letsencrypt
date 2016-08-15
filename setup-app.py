@@ -142,6 +142,9 @@ for idx, cmd in enumerate(cmds):
     # Fetch the certificate
     get_cert(**components)
 
+# Kill the letsencrypt app now that its work is done
+call(["cf", "stop", appname])
+
 domain_with_first_host = "%s.%s" % (settings['domains'][0]['hosts'][0],
                                     primary_domain)
 # Hostname is sometimes '.', which requires special handling
@@ -186,4 +189,5 @@ print("Warning: Please note that your SSL certificate, its corresponding"
 if failure:
     print("Unable to upload certificates")
     sys.exit(1)
+
 print("Upload Succeeded")
