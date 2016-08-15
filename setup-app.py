@@ -5,6 +5,8 @@ import sys
 import time
 
 
+# Define some helper functions
+
 def domain_has_ssl(domain, print_info=False):
     """domain_has_ssl uses the two most-reliable ways to check for an SSL on
     a domain name within bluemix. It calls the Bluemix CLI to ask for
@@ -53,6 +55,8 @@ def check_ssl(ssl_domain):
     except requests.exceptions.SSLError as err:
         print(err)
         return False
+
+# Begin Script
 
 with open('domains.yml') as data_file:
     settings = yaml.safe_load(data_file)
