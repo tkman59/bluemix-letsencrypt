@@ -1,9 +1,7 @@
-# cf-letsencrypt
-Let's Encrypt wrapper for Cloud-Foundry
+# bluemix-letsencrypt
+A script for configuring [Let's Encrypt](https://letsencrypt.org) SSL certificates for CloudFoundry apps on IBM Bluemix
 
-Create certificates for your Cloud-Foundry-hosted apps and domains using [Let's Encrypt](https://letsencrypt.org).
-
-Using the `--path` argument of the map-route command, you can specify just a path to be directed to a separate app.  The benefit, in this situation, is that you can renew your certificates with zero downtime for your apps by running the letsencrypt code in a separate instance without disrupting your application.
+Using the `--path` argument of the `cf map-route` command, you can configure a specific path to be directed to a separate app.  The benefit, in this situation, is that you can automate the configuration of SSL certificates for your custom domain applications by running the [letsencrypt certbot](https://github.com/certbot/certbot) code in a separate instance without disrupting your application.
 
 ```
 NAME:
@@ -22,16 +20,13 @@ OPTIONS:
    --path           Path for the route
 ```
 
-Firstly you must have your cf cli configured, domains created, and DNS configured to point to your CF provider.
+Firstly you must have the Bluemix CLI installed, custom domains created, DNS configured, and set your target of choice.
 
-Once you have that, just edit the domains.yml file checked out from this repo and run `python setup-app.py`.
+Once ready, clone this repo and edit domains.yml with your custom domain name and its corresponding hostnames. Each [host].[domain] combination will become a separate DNS name in the SAN field of the requested certificate. Set the first host value to '.' to set the Subject Common Name to the name of the domain.
 
-This will push the app, map all the routes for the auto-check that LetsEncrypt needs to do to verify that you own the domain.
-It maps host.domain/.well-known/acme-challenge to this app for each domain/host that you want to generate a certificate for.
-
-The LetsEncrypt client will sign the requests, go through the verification and fetch the signed certificates that you can then fetch with the cf files command.
-
-Just watch the logs to see when the process has finished. `cf logs letsencrypt`
-
-While you could leave the app running, it probably makes sense to stop it when you don't need it, and just start it up when you need to renew certificates or add another host/domain.
-By default it will keep running for 1 week, then kill itself.  DEA will then try to restart it for you...
+Finally, run `python setup-app.py` to 
+1. push the cf-letsencrypt application
+2. map the routes needed for Let's Encrypt to verify that you own the domain
+3. initiate and complete the Let's Encrypt ACME protocol for obtaining a certificate
+4. download the resulting certificate, and 
+5. upload it into Bluemix for your custom domain
