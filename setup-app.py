@@ -88,9 +88,9 @@ end_token = "cf stop %s" % appname  # Seeing this in the log means certs done
 log_pipe = Popen("cf logs %s --recent" % appname, shell=True,
                  stdout=PIPE, stderr=PIPE)
 log_lines = log_pipe.stdout.readlines()
-print("Waiting for certs (could take several minutes)")
+print("Waiting for certs...")
 seconds_waited = 0
-MAX_WAIT_SECONDS = 600
+MAX_WAIT_SECONDS = 60
 while end_token not in ''.join(log_lines)\
         and seconds_waited < MAX_WAIT_SECONDS:
     # Keep checking the logs for cert readiness

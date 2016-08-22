@@ -55,11 +55,7 @@ server_thread.daemon = True
 server_thread.start()
 print("Server loop listening on port ", port, ". Running in thread: ", server_thread.name)
 
-print("Starting Let's Encrypt process in 1 minute...")
-
-time.sleep(60)
-
-print("Calling letsencrypt...")
+print("Starting Let's Encrypt process...")
 
 cli.main(args)
 
