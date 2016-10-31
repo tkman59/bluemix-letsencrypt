@@ -166,7 +166,7 @@ if domain_has_ssl(domain_with_first_host, True):
           + " a table of information about your new SSL.\n")
     print("\n(See Warning Above) If you wish to continue, run:\n"
           + ("bx security cert-remove %s; " % domain_with_first_host)
-          + ("bx security cert-add %s -c cert.pem -k privkey.pem; "
+          + ("bx security cert-add %s -c cert.pem -k privkey.pem -i chain.pem; "
              % domain_with_first_host)
           + ("bx security cert %s\n" % domain_with_first_host))
     sys.exit(1)

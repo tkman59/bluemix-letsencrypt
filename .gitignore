@@ -1,2 +1,4 @@
 conf
 logs
+*.pem
+domains.yml
