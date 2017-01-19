@@ -12,7 +12,7 @@ conf = cwd+"/conf"
 work = cwd+"/work"
 host = cwd+"/host"
 
-port = int(os.getenv('VCAP_APP_PORT', '5000'))
+port = int(os.getenv('PORT', '5000'))
 
 # Before we switch directories, set up our args using the domains.yml settings file.
 with open('domains.yml') as data_file:
