@@ -3,6 +3,7 @@ import yaml
 from subprocess import call, Popen, PIPE
 import sys
 import time
+from datetime import datetime
 
 
 # Define some helper functions
@@ -18,7 +19,7 @@ def domain_has_ssl(domain, print_info=False):
     """
     pipe = Popen("bx security cert %s" % domain,
                  stdout=PIPE, shell=True)
-    output = pipe.stdout.read()
+    output = str(pipe.stdout.read())
     cert_exists = "OK" in output
     if print_info and cert_exists:
         print(output)
@@ -32,10 +33,10 @@ def get_cert(appname, domain, certname):
     working directory with the same name that the certificate had on the
     server.
     """
-    command = "cf files %s app/conf/live/%s/%s" % (appname, domain, certname)
+    command = "cf ssh %s -c 'cat ~/app/conf/live/%s/%s' > %s" % (appname, domain, certname, certname)
     print("Running: %s" % command)
     pipe = Popen(command, shell=True, stdout=PIPE)
-    output = pipe.stdout.readlines()
+    output = str(pipe.stdout.readlines())
     cert = ''.join(output[3:-1])  # Strip leading and trailing characters
     with open(certname, 'w') as outfile:
         print("Writing cert to %s" % certname)
@@ -57,6 +58,7 @@ def check_ssl(ssl_domain):
         return False
 
 # Begin Script
+dateTime = datetime.now(); 
 
 with open('domains.yml') as data_file:
     settings = yaml.safe_load(data_file)
@@ -87,11 +89,12 @@ print("Parsing log files.")
 end_token = "cf stop %s" % appname  # Seeing this in the log means certs done
 log_pipe = Popen("cf logs %s --recent" % appname, shell=True,
                  stdout=PIPE, stderr=PIPE)
-log_lines = log_pipe.stdout.readlines()
+log_lines = str(log_pipe.stdout.readlines())
+
 print("Waiting for certs...")
 seconds_waited = 0
 MAX_WAIT_SECONDS = 60
-while end_token not in ''.join(log_lines)\
+while end_token not in ''.join((log_lines))\
         and seconds_waited < MAX_WAIT_SECONDS:
     # Keep checking the logs for cert readiness
     print("Certs not ready yet, retrying in 5 seconds.")
@@ -99,7 +102,7 @@ while end_token not in ''.join(log_lines)\
     seconds_waited = seconds_waited + 5
     log_pipe = Popen("cf logs %s --recent" % appname, shell=True,
                      stdout=PIPE, stderr=PIPE)
-    log_lines = log_pipe.stdout.readlines()
+    log_lines = str(log_pipe.stdout.readlines())
 
 # If no certs in log after 10 minutes, exit and warn user
 if seconds_waited >= MAX_WAIT_SECONDS:
@@ -116,7 +119,7 @@ primary_domain = settings['domains'][0]['domain']
 # Now that certs should be ready, parse for the commands to fetch them
 cmds = []
 for line in log_lines:
-    if ("cf files %s" % appname) in line and primary_domain in line:
+    if ("cf ssh %s" % appname) in line and primary_domain in line:
         cmds.append(line)
 
 # Preprocess and transform commands
@@ -191,3 +194,4 @@ if failure:
     sys.exit(1)
 
 print("Upload Succeeded")
+call(["cf", "delete", appname])

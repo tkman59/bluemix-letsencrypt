@@ -12,7 +12,7 @@ conf = cwd+"/conf"
 work = cwd+"/work"
 host = cwd+"/host"
 
-port = int(os.getenv('VCAP_APP_PORT', '5000'))
+port = int(os.getenv('PORT', '5000'))
 
 # Before we switch directories, set up our args using the domains.yml settings file.
 with open('domains.yml') as data_file:
@@ -70,10 +70,10 @@ path = host + "." + domain
 if host == '.':
     path = domain
 
-print("cf files letsencrypt app/conf/live/" + path + "/cert.pem")
-print("cf files letsencrypt app/conf/live/" + path + "/chain.pem")
-print("cf files letsencrypt app/conf/live/" + path + "/fullchain.pem")
-print("cf files letsencrypt app/conf/live/" + path + "/privkey.pem")
+print("cf ssh letsencrypt -c 'cat ~/app/conf/live/" + path + "/cert.pem' > cert.pem")
+print("cf ssh letsencrypt -c 'cat ~/app/conf/live/" + path + "/chain.pem' > chain.pem")
+print("cf ssh letsencrypt -c 'cat ~/app/conf/live/" + path + "/fullchain.pem' > fullchain.pem")
+print("cf ssh letsencrypt -c 'cat ~/app/conf/live/" + path + "/privkey.pem' > privkey.pem")
 print()
 print("REMEMBER TO STOP THE SERVER WITH cf stop letsencrypt")
 
