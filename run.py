@@ -60,7 +60,7 @@ print("Starting Let's Encrypt process...")
 cli.main(args)
 
 print("Done.")
-print("Fetch the certs and logs via cf files ...")
+print("Fetch the certs and logs via cf ssh ...")
 print("You can get them with these commands: ")
 
 host = settings['domains'][0]['hosts'][0]
@@ -82,6 +82,6 @@ time.sleep(604800)
 
 print("Done.  Killing server...")
 
-# If we kill the server and end, the DEA should restart us and we'll try to get certificates again
+# If we kill the server and end, CF should restart us and we'll try to get certificates again
 httpd.shutdown()
 httpd.server_close()

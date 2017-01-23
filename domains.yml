@@ -1,15 +1,14 @@
 {
   "email": "lmsurpre@us.ibm.com",
-  "staging": true,
+  "staging": false,
   "domains": [
     {
       "domain": "ibmjstart.biz",
       "hosts": [
         ".",
         "www",
+        "test"
       ]
     }
   ]
 }
-
-
