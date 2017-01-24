@@ -76,7 +76,7 @@ for entry in settings['domains']:
             call(["cf", "map-route", appname, domain, "--hostname", host, "--path", "/.well-known/acme-challenge/"])
 
 # Now the app can be started
-call(["cf", "start", appname])
+check_call(["cf", "start", appname])
 
 # Tail the application log
 print("Parsing log files.")

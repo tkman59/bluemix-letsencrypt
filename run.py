@@ -1,5 +1,6 @@
 import yaml
 import os
+import sys
 import time
 import threading
 import SimpleHTTPServer
@@ -74,8 +75,9 @@ print("cf ssh letsencrypt -c 'cat ~/app/conf/live/" + path + "/cert.pem' > cert.
 print("cf ssh letsencrypt -c 'cat ~/app/conf/live/" + path + "/chain.pem' > chain.pem")
 print("cf ssh letsencrypt -c 'cat ~/app/conf/live/" + path + "/fullchain.pem' > fullchain.pem")
 print("cf ssh letsencrypt -c 'cat ~/app/conf/live/" + path + "/privkey.pem' > privkey.pem")
-print()
+print("\n")
 print("REMEMBER TO STOP THE SERVER WITH cf stop letsencrypt")
+sys.stdout.flush()
 
 # Sleep for a week
 time.sleep(604800)
