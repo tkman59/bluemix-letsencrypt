@@ -33,7 +33,7 @@ def get_cert(appname, domain, certname):
     command = "cf ssh %s -c 'cat ~/app/conf/live/%s/%s'" % (appname, domain, certname)
     print("Running: %s" % command)
     certfile = open(certname,"w+")
-    Popen(command, shell=True, stdout=certfile)
+    return Popen(command, shell=True, stdout=certfile)
 
 def check_ssl(ssl_domain):
     """check_ssl makes an HTTPS request to a given domain name and
@@ -110,16 +110,11 @@ if seconds_waited >= MAX_WAIT_SECONDS:
 # Figure out which domain name to look for
 primary_domain = settings['domains'][0]['domain']
 
-get_cert(appname, primary_domain, 'cert.pem')
-get_cert(appname, primary_domain, 'chain.pem')
-get_cert(appname, primary_domain, 'fullchain.pem')
-get_cert(appname, primary_domain, 'privkey.pem')
+cert1Proc = get_cert(appname, primary_domain, 'cert.pem')
+cert2Proc = get_cert(appname, primary_domain, 'chain.pem')
+cert3Proc = get_cert(appname, primary_domain, 'fullchain.pem')
+cert4Proc = get_cert(appname, primary_domain, 'privkey.pem')
 
-print("START SLEEP")
-time.sleep(10)
-print("STOP SLEEP")
-# Kill the letsencrypt app now that its work is done
-call(["cf", "stop", appname])
 
 domain_with_first_host = "%s.%s" % (settings['domains'][0]['hosts'][0],
                                     primary_domain)
@@ -146,6 +141,15 @@ if domain_has_ssl(domain_with_first_host, True):
              % domain_with_first_host)
           + ("bx security cert %s\n" % domain_with_first_host))
     sys.exit(1)
+
+# wait for get_cert subprocesses to finish
+cert1Proc.wait()
+cert2Proc.wait()
+cert3Proc.wait()
+cert4Proc.wait()
+
+# Kill the letsencrypt app now that its work is done
+call(["cf", "stop", appname])
 
 failure = True
 count = 0
