@@ -115,6 +115,9 @@ get_cert(appname, primary_domain, 'chain.pem')
 get_cert(appname, primary_domain, 'fullchain.pem')
 get_cert(appname, primary_domain, 'privkey.pem')
 
+print("START SLEEP")
+time.sleep(10)
+print("STOP SLEEP")
 # Kill the letsencrypt app now that its work is done
 call(["cf", "stop", appname])
 
