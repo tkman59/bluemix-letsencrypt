@@ -22,14 +22,21 @@ OPTIONS:
 
 Firstly you must have the Bluemix CLI installed, custom domains created, DNS configured, and set your target of choice.
 
-Once ready, clone this repo and edit domains.yml with your custom domain name and its corresponding hostnames. Each [host].[domain] combination will become a separate DNS name in the SAN field of the requested certificate. Set the first host value to '.' to set the Subject Common Name to the name of the domain.
+Once ready:
+
+1. download/clone this repo
+2. rename domains.yml.example to domains.yml
+3. enter your email address (e.g. for certificate renewal reminders)
+4. enter your custom domain name and its corresponding hostnames
+
+Each [host].[domain] combination will become a separate DNS name in the SAN field of the requested certificate. Set the first host value to '.' to set the Subject Common Name to the name of the domain.
 
 Note: During testing, please set `staging` to `true` in order to keep load off the production Let's Encrypt environment and reduce the chance of hitting their rate limits (https://letsencrypt.org/docs/staging-environment/).
 
-Finally, run `python setup-app.py` to 
+Finally, run `python setup-app.py` to
 
 1. push the cf-letsencrypt application
 2. map the routes needed for Let's Encrypt to verify that you own the domain
 3. initiate and complete the Let's Encrypt ACME protocol for obtaining a certificate
-4. download the resulting certificate, and 
+4. download the resulting certificate, and
 5. upload it into Bluemix for your custom domain
