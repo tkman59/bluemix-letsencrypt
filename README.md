@@ -24,6 +24,8 @@ Firstly you must have the Bluemix CLI installed, custom domains created, DNS con
 
 Once ready, clone this repo and edit domains.yml with your custom domain name and its corresponding hostnames. Each [host].[domain] combination will become a separate DNS name in the SAN field of the requested certificate. Set the first host value to '.' to set the Subject Common Name to the name of the domain.
 
+Note: During testing, please set `staging` to `true` in order to keep load off the production Let's Encrypt environment and reduce the chance of hitting their rate limits (https://letsencrypt.org/docs/staging-environment/).
+
 Finally, run `python setup-app.py` to 
 
 1. push the cf-letsencrypt application
