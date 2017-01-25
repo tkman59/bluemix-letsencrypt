@@ -1,9 +1,8 @@
 import requests
 import yaml
-from subprocess import call, Popen, PIPE
+from subprocess import call, check_call, Popen, PIPE
 import sys
 import time
-
 
 # Define some helper functions
 
@@ -18,7 +17,7 @@ def domain_has_ssl(domain, print_info=False):
     """
     pipe = Popen("bx security cert %s" % domain,
                  stdout=PIPE, shell=True)
-    output = pipe.stdout.read()
+    output = str(pipe.stdout.read())
     cert_exists = "OK" in output
     if print_info and cert_exists:
         print(output)
@@ -26,21 +25,15 @@ def domain_has_ssl(domain, print_info=False):
 
 
 def get_cert(appname, domain, certname):
-    """get_cert wraps the `cf files` command to retrive only the literal file
-    contents of the certificate that was requested, without the status code at
-    the beginning. It then writes the certificate to a file in the current
-    working directory with the same name that the certificate had on the
-    server.
+    """get_cert wraps the `cf ssh` command to retrieve the literal file
+    contents of the certificate that was requested.
+    It then writes the certificate to a file in the current working
+    directory with the same name that the certificate had on the server.
     """
-    command = "cf files %s app/conf/live/%s/%s" % (appname, domain, certname)
+    command = "cf ssh %s -c 'cat ~/app/conf/live/%s/%s'" % (appname, domain, certname)
     print("Running: %s" % command)
-    pipe = Popen(command, shell=True, stdout=PIPE)
-    output = pipe.stdout.readlines()
-    cert = ''.join(output[3:-1])  # Strip leading and trailing characters
-    with open(certname, 'w') as outfile:
-        print("Writing cert to %s" % certname)
-        outfile.write(cert)
-
+    certfile = open(certname,"w+")
+    return Popen(command, shell=True, stdout=certfile)
 
 def check_ssl(ssl_domain):
     """check_ssl makes an HTTPS request to a given domain name and
@@ -57,7 +50,6 @@ def check_ssl(ssl_domain):
         return False
 
 # Begin Script
-
 with open('domains.yml') as data_file:
     settings = yaml.safe_load(data_file)
 
@@ -66,8 +58,12 @@ with open('manifest.yml') as manifest_file:
 
 appname = manifest['applications'][0]['name']
 
+#consider deleting the app if you've already pushed it with recent success
+#otherwise the script can get confused by those success messages in the logs
+#call(["cf", "delete", appname])
+
 # Push the app, but don't start it yet
-call(["cf", "push", "--no-start"])
+check_call(["cf", "push", "--no-start"])
 
 # For each domain, map a route for the specific letsencrypt check path
 # '/.well-known/acme-challenge/'
@@ -80,14 +76,15 @@ for entry in settings['domains']:
             call(["cf", "map-route", appname, domain, "--hostname", host, "--path", "/.well-known/acme-challenge/"])
 
 # Now the app can be started
-call(["cf", "start", appname])
+check_call(["cf", "start", appname])
 
 # Tail the application log
 print("Parsing log files.")
 end_token = "cf stop %s" % appname  # Seeing this in the log means certs done
 log_pipe = Popen("cf logs %s --recent" % appname, shell=True,
                  stdout=PIPE, stderr=PIPE)
-log_lines = log_pipe.stdout.readlines()
+log_lines = str(log_pipe.stdout.readlines())
+
 print("Waiting for certs...")
 seconds_waited = 0
 MAX_WAIT_SECONDS = 60
@@ -99,9 +96,9 @@ while end_token not in ''.join(log_lines)\
     seconds_waited = seconds_waited + 5
     log_pipe = Popen("cf logs %s --recent" % appname, shell=True,
                      stdout=PIPE, stderr=PIPE)
-    log_lines = log_pipe.stdout.readlines()
+    log_lines = str(log_pipe.stdout.readlines())
 
-# If no certs in log after 10 minutes, exit and warn user
+# If no certs in log after MAX_WAIT_SECONDS, exit and warn user
 if seconds_waited >= MAX_WAIT_SECONDS:
     print("\n\nIt has been %d minutes without seeing certificates issued"
           % (MAX_WAIT_SECONDS/60)
@@ -113,37 +110,11 @@ if seconds_waited >= MAX_WAIT_SECONDS:
 # Figure out which domain name to look for
 primary_domain = settings['domains'][0]['domain']
 
-# Now that certs should be ready, parse for the commands to fetch them
-cmds = []
-for line in log_lines:
-    if ("cf files %s" % appname) in line and primary_domain in line:
-        cmds.append(line)
+cert1Proc = get_cert(appname, primary_domain, 'cert.pem')
+cert2Proc = get_cert(appname, primary_domain, 'chain.pem')
+cert3Proc = get_cert(appname, primary_domain, 'fullchain.pem')
+cert4Proc = get_cert(appname, primary_domain, 'privkey.pem')
 
-# Preprocess and transform commands
-for idx, cmd in enumerate(cmds):
-    # Break each command into chunks and ignore everything before
-    # 'cf files ...'
-    parts = [s.strip() for s in cmd.split(' ') if s != ''][3:]
-    # Join the parts back together. This is necessary so that
-    # it's easy to find all of the unique commands
-    cmds[idx] = ' '.join(parts)
-
-# Toss them in a set to keep only unique commands, then convert
-# to a list again so that they can be broken into sublists
-cmds = list(set(cmds))
-
-# Extract the parts of each command that are of interest
-cmds = [cmd.split(' ') for cmd in cmds]
-for idx, cmd in enumerate(cmds):
-    components = {}
-    components['appname'] = cmd[2]
-    components['domain'] = cmd[3].split('/')[-2]
-    components['certname'] = cmd[3].split('/')[-1]
-    # Fetch the certificate
-    get_cert(**components)
-
-# Kill the letsencrypt app now that its work is done
-call(["cf", "stop", appname])
 
 domain_with_first_host = "%s.%s" % (settings['domains'][0]['hosts'][0],
                                     primary_domain)
@@ -170,6 +141,15 @@ if domain_has_ssl(domain_with_first_host, True):
              % domain_with_first_host)
           + ("bx security cert %s\n" % domain_with_first_host))
     sys.exit(1)
+
+# wait for get_cert subprocesses to finish
+cert1Proc.wait()
+cert2Proc.wait()
+cert3Proc.wait()
+cert4Proc.wait()
+
+# Kill the letsencrypt app now that its work is done
+call(["cf", "stop", appname])
 
 failure = True
 count = 0

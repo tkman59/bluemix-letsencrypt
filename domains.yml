@@ -1,20 +1,12 @@
 {
-  "email": "ben@example.com",
-  "staging": false,
+  "email": "lmsurpre@us.ibm.com",
+  "staging": true,
   "domains": [
     {
-      "domain": "example.com",
+      "domain": "ibmjstart.biz",
       "hosts": [
         ".",
-        "auth",
-        "test",
-        "www"
-      ]
-    },
-    {
-      "domain": "example2.com",
-      "hosts": [
-        "abc",
+        "www",
         "test"
       ]
     }
