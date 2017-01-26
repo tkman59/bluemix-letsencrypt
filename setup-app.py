@@ -110,18 +110,13 @@ if seconds_waited >= MAX_WAIT_SECONDS:
 # Figure out which domain name to look for
 primary_domain = settings['domains'][0]['domain']
 
-cert1Proc = get_cert(appname, primary_domain, 'cert.pem')
-cert2Proc = get_cert(appname, primary_domain, 'chain.pem')
-cert3Proc = get_cert(appname, primary_domain, 'fullchain.pem')
-cert4Proc = get_cert(appname, primary_domain, 'privkey.pem')
-
-
 domain_with_first_host = "%s.%s" % (settings['domains'][0]['hosts'][0],
                                     primary_domain)
+
 # Hostname is sometimes '.', which requires special handling
 if domain_with_first_host.startswith('..'):
     domain_with_first_host = domain_with_first_host[2:]
-
+    
 # Check if there is already an SSL in place
 if domain_has_ssl(domain_with_first_host, True):
     print("\n\n***IMPORTANT***")
@@ -141,6 +136,11 @@ if domain_has_ssl(domain_with_first_host, True):
              % domain_with_first_host)
           + ("bx security cert %s\n" % domain_with_first_host))
     sys.exit(1)
+
+cert1Proc = get_cert(appname, domain_with_first_host, 'cert.pem')
+cert2Proc = get_cert(appname, domain_with_first_host, 'chain.pem')
+cert3Proc = get_cert(appname, domain_with_first_host, 'fullchain.pem')
+cert4Proc = get_cert(appname, domain_with_first_host, 'privkey.pem')
 
 # wait for get_cert subprocesses to finish
 cert1Proc.wait()
