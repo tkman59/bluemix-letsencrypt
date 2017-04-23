@@ -15,7 +15,7 @@ def domain_has_ssl(domain, print_info=False):
     The print_info parameter can be used to dump the certificate information
     from Bluemix to stdout.
     """
-    pipe = Popen("bx security cert %s" % domain,
+    pipe = Popen("bx app domain-cert %s" % domain,
                  stdout=PIPE, shell=True)
     output = str(pipe.stdout.read())
     cert_exists = "OK" in output
@@ -131,10 +131,10 @@ if domain_has_ssl(domain_with_first_host, True):
           + " the last command produces an error instead of displaying"
           + " a table of information about your new SSL.\n")
     print("\n(See Warning Above) If you wish to continue, run:\n"
-          + ("bx security cert-remove %s; " % domain_with_first_host)
-          + ("bx security cert-add %s -c cert.pem -k privkey.pem -i chain.pem; "
-             % domain_with_first_host)
-          + ("bx security cert %s\n" % domain_with_first_host))
+          + ("bx app domain-cert-remove %s; " % primary_domain)
+          + ("bx app domain-cert-add %s -c cert.pem -k privkey.pem -i chain.pem; "
+             % primary_domain)
+          + ("bx app domain-cert %s\n" % primary_domain))
     sys.exit(1)
 
 cert1Proc = get_cert(appname, domain_with_first_host, 'cert.pem')
@@ -156,8 +156,8 @@ count = 0
 while(failure and count < 3):
     # Upload new cert
     print("Attempting certificate upload...")
-    call("bx security cert-add %s -c cert.pem -k privkey.pem -i chain.pem"
-         % domain_with_first_host, shell=True)
+    call("bx app domain-cert-add %s -c cert.pem -k privkey.pem -i chain.pem"
+         % primary_domain, shell=True)
     failure = not domain_has_ssl(domain_with_first_host, True)
     count = count + 1
     time.sleep(5)
