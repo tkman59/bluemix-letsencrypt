@@ -6,10 +6,10 @@ import time
 
 # Define some helper functions
 
-def domain_has_ssl(domain, print_info=False):
+def domain_has_ssl(domain, full_host, print_info=False):
     """domain_has_ssl uses the two most-reliable ways to check for an SSL on
     a domain name within bluemix. It calls the Bluemix CLI to ask for
-    certificate details, and it attempts to connect to that domain with HTTPS.
+    certificate details, and it attempts to connect to that host with HTTPS.
     If either succeeds, it returns True. Otherwise, it returns false. Note
     that it is possible to get false negatives, but not false positives.
     The print_info parameter can be used to dump the certificate information
@@ -21,7 +21,7 @@ def domain_has_ssl(domain, print_info=False):
     cert_exists = "OK" in output
     if print_info and cert_exists:
         print(output)
-    return cert_exists or check_ssl(domain)
+    return cert_exists or check_ssl(full_host)
 
 
 def get_cert(appname, domain, certname):
@@ -35,13 +35,13 @@ def get_cert(appname, domain, certname):
     certfile = open(certname,"w+")
     return Popen(command, shell=True, stdout=certfile)
 
-def check_ssl(ssl_domain):
-    """check_ssl makes an HTTPS request to a given domain name and
-    returns a boolean for whether the SSL on the domain is present
+def check_ssl(full_host):
+    """check_ssl makes an HTTPS request to a given full host name 
+    and returns a boolean for whether the SSL on the host is present
     and valid.
     """
     try:
-        target = "https://%s" % ssl_domain
+        target = "https://%s" % full_host
         print("Making GET request to %s" % target)
         requests.get(target)
         return True
@@ -118,7 +118,7 @@ if domain_with_first_host.startswith('..'):
     domain_with_first_host = domain_with_first_host[2:]
     
 # Check if there is already an SSL in place
-if domain_has_ssl(domain_with_first_host, True):
+if domain_has_ssl(primary_domain, domain_with_first_host, True):
     print("\n\n***IMPORTANT***")
     print("This domain name already has an SSL in bluemix. You must"
           + " first remove the old SSL before adding a new one. This"
@@ -158,7 +158,7 @@ while(failure and count < 3):
     print("Attempting certificate upload...")
     call("bx app domain-cert-add %s -c cert.pem -k privkey.pem -i chain.pem"
          % primary_domain, shell=True)
-    failure = not domain_has_ssl(domain_with_first_host, True)
+    failure = not domain_has_ssl(primary_domain, domain_with_first_host, True)
     count = count + 1
     time.sleep(5)
 
