@@ -17,12 +17,11 @@ def domain_has_ssl(domain, full_host, print_info=False):
     """
     pipe = Popen("bx app domain-cert %s" % domain,
                  stdout=PIPE, shell=True)
-    output = str(pipe.stdout.read())
+    output = pipe.stdout.read().decode("unicode_escape")
     cert_exists = "OK" in output
     if print_info and cert_exists:
         print(output)
     return cert_exists or check_ssl(full_host)
-
 
 def get_cert(appname, domain, certname):
     """get_cert wraps the `cf ssh` command to retrieve the literal file
@@ -36,7 +35,7 @@ def get_cert(appname, domain, certname):
     return Popen(command, shell=True, stdout=certfile)
 
 def check_ssl(full_host):
-    """check_ssl makes an HTTPS request to a given full host name 
+    """check_ssl makes an HTTPS request to a given full host name
     and returns a boolean for whether the SSL on the host is present
     and valid.
     """
@@ -116,26 +115,6 @@ domain_with_first_host = "%s.%s" % (settings['domains'][0]['hosts'][0],
 # Hostname is sometimes '.', which requires special handling
 if domain_with_first_host.startswith('..'):
     domain_with_first_host = domain_with_first_host[2:]
-    
-# Check if there is already an SSL in place
-if domain_has_ssl(primary_domain, domain_with_first_host, True):
-    print("\n\n***IMPORTANT***")
-    print("This domain name already has an SSL in bluemix. You must"
-          + " first remove the old SSL before adding a new one. This"
-          + " means that your application will have a window of time"
-          + " without an SSL. If that is unacceptable for your"
-          + " application, use the Bluemix Web UI to update your"
-          + " SSL. If you can afford the SSL downtime, follow the"
-          + " instructions below. You may see error messages when"
-          + " running these commands. You only need to be concerned if"
-          + " the last command produces an error instead of displaying"
-          + " a table of information about your new SSL.\n")
-    print("\n(See Warning Above) If you wish to continue, run:\n"
-          + ("bx app domain-cert-remove %s; " % primary_domain)
-          + ("bx app domain-cert-add %s -c cert.pem -k privkey.pem -i chain.pem; "
-             % primary_domain)
-          + ("bx app domain-cert %s\n" % primary_domain))
-    sys.exit(1)
 
 cert1Proc = get_cert(appname, domain_with_first_host, 'cert.pem')
 cert2Proc = get_cert(appname, domain_with_first_host, 'chain.pem')
@@ -147,6 +126,20 @@ cert1Proc.wait()
 cert2Proc.wait()
 cert3Proc.wait()
 cert4Proc.wait()
+
+# Check if there is already an SSL in place
+if domain_has_ssl(primary_domain, domain_with_first_host, True):
+    print("\n***IMPORTANT***")
+    print("This domain name already has an SSL certificate in bluemix."
+          + " You must first remove the old SSL before adding a new one."
+          + " This means that your application will have a window of time"
+          + " without a certificate.\n")
+    print("If you wish to continue, run:\n"
+          + ("bx app domain-cert-remove %s; " % primary_domain)
+          + ("bx app domain-cert-add %s -c cert.pem -k privkey.pem -i chain.pem; "
+             % primary_domain)
+          + ("bx app domain-cert %s\n" % primary_domain))
+    sys.exit(1)
 
 # Kill the letsencrypt app now that its work is done
 call(["cf", "stop", appname])
