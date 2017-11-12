@@ -24,12 +24,12 @@ def domain_has_ssl(domain, full_host, print_info=False):
     return cert_exists or check_ssl(full_host)
 
 def get_cert(appname, domain, certname):
-    """get_cert wraps the `cf ssh` command to retrieve the literal file
+    """get_cert wraps the `bx cf ssh` command to retrieve the literal file
     contents of the certificate that was requested.
     It then writes the certificate to a file in the current working
     directory with the same name that the certificate had on the server.
     """
-    command = "cf ssh %s -c 'cat ~/app/conf/live/%s/%s'" % (appname, domain, certname)
+    command = "bx --quiet cf ssh %s -c \"cat ~/app/conf/live/%s/%s\"" % (appname, domain, certname)
     print("Running: %s" % command)
     certfile = open(certname,"w+")
     return Popen(command, shell=True, stdout=certfile)
@@ -59,10 +59,10 @@ appname = manifest['applications'][0]['name']
 
 #consider deleting the app if you've already pushed it with recent success
 #otherwise the script can get confused by those success messages in the logs
-#call(["cf", "delete", appname])
+#call(["bx", "cf", "delete", appname])
 
 # Push the app, but don't start it yet
-check_call(["cf", "push", "--no-start"])
+check_call(["bx", "app", "push", "--no-start"])
 
 # For each domain, map a route for the specific letsencrypt check path
 # '/.well-known/acme-challenge/'
@@ -70,17 +70,17 @@ for entry in settings['domains']:
     domain = entry['domain']
     for host in entry['hosts']:
         if host == '.':
-            call(["cf", "map-route", appname, domain, "--path", "/.well-known/acme-challenge/"])
+            call(["bx", "cf", "map-route", appname, domain, "--path", ".well-known/acme-challenge/"])
         else:
-            call(["cf", "map-route", appname, domain, "--hostname", host, "--path", "/.well-known/acme-challenge/"])
+            call(["bx", "cf", "map-route", appname, domain, "--hostname", host, "--path", ".well-known/acme-challenge/"])
 
 # Now the app can be started
-check_call(["cf", "start", appname])
+check_call(["bx", "app", "start", appname])
 
 # Tail the application log
 print("Parsing log files.")
 end_token = "cf stop %s" % appname  # Seeing this in the log means certs done
-log_pipe = Popen("cf logs %s --recent" % appname, shell=True,
+log_pipe = Popen("bx cf logs %s --recent" % appname, shell=True,
                  stdout=PIPE, stderr=PIPE)
 log_lines = str(log_pipe.stdout.readlines())
 
@@ -93,7 +93,7 @@ while end_token not in ''.join(log_lines)\
     print("Certs not ready yet, retrying in 5 seconds.")
     time.sleep(5)
     seconds_waited = seconds_waited + 5
-    log_pipe = Popen("cf logs %s --recent" % appname, shell=True,
+    log_pipe = Popen("bx cf logs %s --recent" % appname, shell=True,
                      stdout=PIPE, stderr=PIPE)
     log_lines = str(log_pipe.stdout.readlines())
 
@@ -102,7 +102,7 @@ if seconds_waited >= MAX_WAIT_SECONDS:
     print("\n\nIt has been %d minutes without seeing certificates issued"
           % (MAX_WAIT_SECONDS/60)
           + " in the log. Something probably went wrong. Please check"
-          + " the output of `cf logs %s --recent`" % appname
+          + " the output of `bx cf logs %s --recent`" % appname
           + " for more information.\n\nExiting.")
     sys.exit(1)
 
@@ -142,7 +142,7 @@ if domain_has_ssl(primary_domain, domain_with_first_host, True):
     sys.exit(1)
 
 # Kill the letsencrypt app now that its work is done
-call(["cf", "stop", appname])
+call(["bx", "app", "stop", appname])
 
 failure = True
 count = 0

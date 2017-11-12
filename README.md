@@ -1,5 +1,5 @@
 # bluemix-letsencrypt
-A script for configuring [Let's Encrypt](https://letsencrypt.org) SSL certificates for CloudFoundry apps on IBM Bluemix
+A script for configuring [Let's Encrypt](https://letsencrypt.org) SSL certificates for CloudFoundry apps on IBM Cloud (formerly known as Bluemix).
 
 Using the `--path` argument of the `cf map-route` command, you can configure a specific path to be directed to a separate app.  The benefit, in this situation, is that you can automate the configuration of SSL certificates for your custom domain applications by running the [letsencrypt certbot](https://github.com/certbot/certbot) code in a separate instance without disrupting your application.
 
@@ -20,7 +20,7 @@ OPTIONS:
    --path           Path for the route
 ```
 
-Firstly you must have the Bluemix CLI installed, custom domains created, DNS configured, and set your target of choice.
+Firstly you must have the [Bluemix CLI](https://console.bluemix.net/docs/cli/reference/bluemix_cli/get_started.html) installed, custom domains created, DNS configured, and set your target of choice.
 
 Once ready:
 
@@ -40,4 +40,4 @@ Finally, run `python setup-app.py` to
 2. map the routes needed for Let's Encrypt to verify that you own the domain
 3. initiate and complete the Let's Encrypt ACME protocol for obtaining a certificate
 4. download the resulting certificate files, and
-5. upload it into Bluemix for your custom domain
+5. upload it into IBM Cloud for your custom domain
