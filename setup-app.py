@@ -62,6 +62,8 @@ appname = manifest['applications'][0]['name']
 #call(["bx", "cf", "delete", appname])
 
 # Push the app, but don't start it yet
+call(["bx", "login"]) 
+call(["bx","target", "--cf"])
 check_call(["bx", "app", "push", "--no-start"])
 
 # For each domain, map a route for the specific letsencrypt check path
